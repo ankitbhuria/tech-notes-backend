@@ -1,12 +1,16 @@
+require('dotenv').config();
+console.log(process.env.NODE_ENV);
 // dependencies
 const express = require('express')
 const app = express();
 const cookieParser = require('cookie-parser');
 const path = require('path');
 const cors = require('cors');
-const { logger } = require('./middlwares/logger');
+const { logger, logEvents } = require('./middlwares/logger');
 const errorHandler = require('./middlwares/errHandler');
 const corsOptions = require('./config/corsOptions');
+const connectDB = require('./config/dbConn');
+const { default: mongoose } = require('mongoose');
 const PORT = process.env.PORT || 1000;
 // Middlewares
 app.use(logger);
@@ -21,6 +25,16 @@ app.all('*', (req, res)=>{
     else if(req.accepts('json')) res.status(404).json({'message': '404 not found'})
     else res.type('txt').status(404).send('404 not found');
 })
+// connection with database
+connectDB();
 app.use(errorHandler);
-app.listen(PORT, ()=> console.log(`Server is running on PORT: ${PORT}`));
+mongoose.connection.once('open', ()=>{
+    console.log('Connected to MongoDB')
+    app.listen(PORT, ()=> console.log(`Server is running on PORT: ${PORT}`));
+})
 
+mongoose.connection.on('error', err =>{
+    console.log(err);
+
+    logEvents(`${err.no}\t${err.code}\t${err.syscall}\t${err.hostname}\n`, 'mongoErrLogs.log');
+})
